@@ -18,19 +18,21 @@ def update_trello_status():
             if card is None:
                 print("a trello card for '{}' could not be found".format(runfolder))
                 continue
+            if card.is_archived():
+                continue
+            card.mark_archived()
+            card.comment(
+                "{}: archive was verified on {}".format(
+                    os.path.basename(__file__),
+                    datetime.datetime.fromtimestamp(float(tstamp)).isoformat()))
         except Exception as e:
-            print("ERROR: {} - skipping".format(e.message))
-            continue
-        if card.is_archived():
-            continue
-        card.mark_archived()
-        card.comment(
-            "{}: archive was verified on {}".format(
-                os.path.basename(__file__),
-                datetime.datetime.fromtimestamp(float(tstamp)).isoformat()))
+            print("ERROR: processing '{}' failed: {} - skipping".format(runfolder, e.message))
     # Finally, sort the lists on the board
     for listt in conn.lists:
-        listt.sort()
+        try:
+            listt.sort()
+        except Exception as e:
+            print("ERROR: sorting '{}' failed: {} - skipping".format(listt.name, e.message))
 
 if __name__ == '__main__':
     update_trello_status()

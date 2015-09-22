@@ -4,6 +4,20 @@ import trello
 __author__ = 'Pontus'
 
 
+def catchexception(fn):
+    # TODO: use inspection instead (?)
+    exceptions = (trello.exceptions.ResourceUnavailable,
+                  trello.exceptions.TokenError,
+                  trello.exceptions.Unauthorized)
+
+    def inner(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except exceptions as e:
+            raise Exception(str(e))
+    return inner
+
+
 class TrelloConnection(trello.TrelloClient):
 
     _BOARDNAME = 'Raw data delivery'
@@ -25,12 +39,14 @@ class TrelloConnection(trello.TrelloClient):
             board.fetch()
             return not board.closed
 
+    @catchexception
     def _get_board(self):
         board = filter(lambda x: x.name == self._BOARDNAME and TrelloConnection._board_is_open(x), self.list_boards())
         if len(board) > 1:
             raise Exception("More than one board matching name '{}'".format(self._BOARDNAME))
         return board[0]
 
+    @catchexception
     def _get_cards(self):
         return self.board.open_cards()
 
@@ -55,6 +71,7 @@ class TrelloConnection(trello.TrelloClient):
             return x.name
         return map(_name, filter(RunfolderCard.is_delivered, self.cards))
 
+    @catchexception
     def _get_lists(self):
         return self.board.open_lists()
 
@@ -82,27 +99,35 @@ class RunfolderCard(object):
         self.card = card
         self.name = self.card.name
 
+    @catchexception
     def comment(self, text):
         return self.card.comment(text)
 
+    @catchexception
     def is_delivered(self):
         return self._delivered('get')
 
+    @catchexception
     def is_archived(self):
         return self._archived('get')
 
+    @catchexception
     def mark_delivered(self):
         return self._delivered('set', checked=True)
 
+    @catchexception
     def mark_archived(self):
         return self._archived('set', checked=True)
 
+    @catchexception
     def mark_not_delivered(self):
         return self._delivered('set', checked=False)
 
+    @catchexception
     def mark_not_archived(self):
         return self._archived('set', checked=False)
 
+    @catchexception
     def is_complete(self):
         # lazy-loading of cards in py-trello is unreliable, so fetch them explicitly
         self.card.fetch()
